@@ -3,10 +3,6 @@ import numpy as np
 from blockmatrix import SpatioTemporalData
 from blockmatrix.utils import get_example_raw
 
-raw = np.array([[1, 2, 3], [101, 1002, 13]]).T
-raw = np.repeat(raw[:, :, np.newaxis], 5, axis=2)
-raw[:, :, 1] += 300
-raw[:, :, 2] -= 200
 raw, nch, ntim = get_example_raw()
 std = SpatioTemporalData(raw)
 
