@@ -4,6 +4,8 @@ A python package to provide easier working with block-structured matrices. Curre
 code mostly serves my purposes, i.e., manipulating block-structured covariance matrices
 and applying high-dimensional estimation techniques to them.
 
+This package is also available on PyPi.
+
 ## Usage
 
 As of now unfortunately only the code and the docstrings are available as documentation.
@@ -15,6 +17,9 @@ functionality and visualizations.
 
 - [ ] Documentation
 - [ ] Testing
-- [ ] Implementation of sklearn style covariance estimators
-- [ ] Abstract mne channels away
-- [ ] Reduce unnecessary dependencies
+- [x] Implementation of sklearn style covariance estimators
+  - Moved to ToeplitzLDA package
+- [x] Abstract mne channels away
+  - Using optional mne dependency
+- [x] Reduce unnecessary dependencies
+  - `toeplitz` is now optional

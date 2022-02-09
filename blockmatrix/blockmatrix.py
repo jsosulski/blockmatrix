@@ -3,17 +3,23 @@ from __future__ import annotations
 import warnings
 from abc import ABC
 from enum import Enum
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Optional, Sequence, Tuple, Union
 
 # only needed for plt show!!!
 import matplotlib.pyplot as plt
-
-import mne.channels
 import numpy as np
-import toeplitz
 import vg
 
 from blockmatrix.visualization import plot_covmat
+
+if TYPE_CHECKING:
+    from mne.channels import DigMontage
+try:
+    import toeplitz
+
+    _has_toeplitz = True
+except ImportError:
+    _has_toeplitz = False
 
 
 class MatrixProperty(Enum):
@@ -153,6 +159,11 @@ def fortran_block_levinson(
     -------
 
     """
+    if not _has_toeplitz:
+        raise ValueError(
+            f"Cannot use fortran solver as toeplitz solver package is not "
+            f"installed. Consider installing blockmatrix[solver]."
+        )
     if transform_A:
         a, fortran_mean = fortran_cov_mean_transformation(
             A, mean=mean, nch=nch, ntim=ntim
@@ -322,7 +333,7 @@ class SpatioTemporalData(TwoDomainData):
         data,
         n_chans: int,
         n_times: Optional[int] = None,
-        montage: Optional[mne.channels.DigMontage] = None,
+        montage: Optional[DigMontage] = None,
     ):
         if n_times is None:
             div, mod = divmod(data.shape[0], n_chans)
@@ -335,9 +346,7 @@ class SpatioTemporalData(TwoDomainData):
         data = data.reshape((n_chans, n_times, -1), order="F")
         return SpatioTemporalData(data, montage=montage)
 
-    def __init__(
-        self, data: np.ndarray, montage: Optional[mne.channels.DigMontage] = None
-    ):
+    def __init__(self, data: np.ndarray, montage: Optional[DigMontage] = None):
         super().__init__(data, ["channel", "time"])
         self.spatial_variance = None
         self.spatial_means = None
@@ -566,7 +575,7 @@ class SpatioTemporalMatrix(BlockMatrix):
         matrix: np.ndarray,
         n_chans: int,
         n_times: int,
-        montage: Optional[mne.channels.DigMontage] = None,
+        montage: Optional[DigMontage] = None,
         channel_prime: Optional[bool] = True,
     ):
         if channel_prime:
