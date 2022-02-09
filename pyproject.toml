@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "blockmatrix"
-version = "0.1.0"
+version = "0.2.0"
 description = "Utilities to handle blockmatrices, especially covariance matrices."
 authors = ["Jan Sosulski <mail@jan-sosulski.de>"]
 
