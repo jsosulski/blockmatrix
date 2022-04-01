@@ -575,8 +575,9 @@ class SpatioTemporalMatrix(BlockMatrix):
         matrix: np.ndarray,
         n_chans: int,
         n_times: int,
-        montage: Optional[DigMontage] = None,
         channel_prime: Optional[bool] = True,
+        montage: Optional[DigMontage] = None,
+        sfreq: Optional[float] = None,
     ):
         if channel_prime:
             super().__init__(
@@ -593,6 +594,7 @@ class SpatioTemporalMatrix(BlockMatrix):
 
         self.is_inverted = False
         self.montage = montage
+        self.sfreq = sfreq
 
     def get_channel_block(self, t0: int, t1: int):
         return self.get_block(t0, t1)
@@ -743,6 +745,7 @@ class SpatioTemporalMatrix(BlockMatrix):
             ax.axhline(0, linestyle="--", color="k")
             for t in range(n_times):
                 x = np.array(range(n_times)) - t
+                x = x if self.sfreq is None else x / self.sfreq
                 y = submat[t, :]
                 ax.plot(x, y, c=cm[t, :])
                 ch = c if ch_names is None else ch_names[c]
@@ -772,7 +775,8 @@ class SpatioTemporalMatrix(BlockMatrix):
             ax.grid(False)
 
         matrix_type = "Precision" if self.is_inverted else "Covariance"
-        fig.text(0.5, 0.01, "Time offset (in samples)", ha="center")
+        time_unit = "(in samples)" if self.sfreq is None else "(in seconds)"
+        fig.text(0.5, 0.01, f"Time offset {time_unit}", ha="center")
         fig.text(0.01, 0.5, f"{matrix_type}", va="center", rotation="vertical")
         fig.suptitle(f"{matrix_type} - Temporal stationarity analysis")
         if show:
