@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "blockmatrix"
-version = "0.2.1"
+version = "0.2.2"
 description = "Utilities to handle blockmatrices, especially covariance matrices."
 authors = ["Jan Sosulski <mail@jan-sosulski.de>"]
 keywords = ["block matrix", "numpy", "spatio-temporal data"]
@@ -13,7 +13,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.8,<3.11"
 matplotlib = "^3.5.1"
 vg = "^2.0.0"
 seaborn = "^0.11.2"
