@@ -346,11 +346,12 @@ class SpatioTemporalData(TwoDomainData):
         data = data.reshape((n_chans, n_times, -1), order="F")
         return SpatioTemporalData(data, montage=montage)
 
-    def __init__(self, data: np.ndarray, montage: Optional[DigMontage] = None):
+    def __init__(self, data: np.ndarray, montage: Optional[DigMontage] = None, sfreq: Optional[float] = None):
         super().__init__(data, ["channel", "time"])
         self.spatial_variance = None
         self.spatial_means = None
         self.montage = montage
+        self.sfreq = sfreq
 
     @property
     def n_chans(self):
@@ -369,7 +370,7 @@ class SpatioTemporalData(TwoDomainData):
     def get_global_scm(self):
         flata = self.get_flattened()
         stm = SpatioTemporalMatrix(
-            calc_scm(flata, flata), self.n_chans, self.n_times, montage=self.montage
+            calc_scm(flata, flata), self.n_chans, self.n_times, montage=self.montage, sfreq=self.sfreq
         )
         # FIXME: SpatioTemporalMatrix should have an option in the constructor
         if self.primeness != "channel":
@@ -544,7 +545,10 @@ class BlockMatrix(BlockBased):
         scaling=None,
         axes=None,
         title=None,
+        tick_labels=None,
+        skip_tick_labels=0,
         subtick_labels=None,
+        plot_correlations=False,
         **kwargs,
     ):
         self._to_2dblockmat()
@@ -553,13 +557,22 @@ class BlockMatrix(BlockBased):
         else:
             fig = axes.figure
         title = f"Primeness: {self.primeness}" if title is None else title
+        if plot_correlations:
+            dg = np.linalg.inv(np.sqrt(np.diag(np.diag(self.mat))))
+            mat = dg @ self.mat @ dg
+        else:
+            mat = self.mat
+        if tick_labels is None and self.montage is not None and self.primeness == "time":
+            tick_labels = self.montage.ch_names
         plot_covmat(
-            self.mat,
+            mat,
             dim1=self.block_dim[0],
             dim2=self.block_dim[1],
             scaling=scaling,
             axes=axes,
             title=title,
+            tick_labels=tick_labels,
+            skip_tick_labels=skip_tick_labels,
             subtick_labels=subtick_labels,
             primeness=self.primeness,
             **kwargs,
@@ -614,7 +627,8 @@ class SpatioTemporalMatrix(BlockMatrix):
         ----------
         average_blocks : bool
             When this flag is true, diagonal values are averaged. Otherwise
-            only the first block-column/row is used.
+            the sum is taken. Note: using sum corresponds to linear tapering
+            (the matrix is by 'num_blocks' scaled compared to avg+taper)
         raise_spatial : bool
             Set this to false if you want to force toeplitz offdiagonals even
             along the spatial domain. See [TODO] for more information.
@@ -708,11 +722,13 @@ class SpatioTemporalMatrix(BlockMatrix):
     def plot_stationarity(
         self,
         axes=None,
-        figsize=(12, 10),
+        figsize: tuple = (12, 10),
         oneside: bool = True,
         sharey: bool = True,
+        fixed_ylim: tuple = None,
         show: bool = False,
         plot_legend: bool = True,
+        block_offset: int = 0,
     ):
         self._to_4dblockmat()
         check(
@@ -721,6 +737,10 @@ class SpatioTemporalMatrix(BlockMatrix):
             ".swap_primeness() first.",
         )
         n_chans = self.mat.shape[2]
+        sharey = False if fixed_ylim is not None else sharey
+        if block_offset > 0 and oneside:
+            print("WARNING: Plotting with block_offset != 0 and oneside will hide "
+                  "information as the off-diagonal blocks are not symmetric.")
         if axes is None:
             n_subp = np.ceil(np.sqrt(n_chans + int(plot_legend))).astype(int)
             fig, axes = plt.subplots(
@@ -738,8 +758,9 @@ class SpatioTemporalMatrix(BlockMatrix):
         )
         n_times = self.mat.shape[1]
         cm = plt.cm.plasma(np.linspace(0, 1, n_times))
-        for c in range(n_chans):
-            submat = self.mat[:, :, c, c]
+        bo = block_offset
+        for c in (range(n_chans - bo)):
+            submat = self.mat[:, :, c, c+bo]
             ax = axes.ravel()[c]
             ax.set_visible(True)
             ax.axhline(0, linestyle="--", color="k")
@@ -752,6 +773,8 @@ class SpatioTemporalMatrix(BlockMatrix):
                 ax.set_title(ch)
                 if oneside:
                     ax.set_xlim((0, None))
+            if fixed_ylim is not None:
+                ax.set_ylim(fixed_ylim)
         if plot_legend:
             ax = axes.ravel()[-1]
             ax.set_visible(True)
@@ -768,6 +791,7 @@ class SpatioTemporalMatrix(BlockMatrix):
             ax.tick_params(labelbottom=False)
             ax.set_xlabel("Time")
             ax.set_ylabel("Time")
+            [l.set_visible(False) for l in ax.get_yticklabels()]
             [s.set_visible(False) for s in ax.spines.values()]
             [t.set_visible(False) for t in ax.get_xticklines()]
             [t.set_visible(False) for t in ax.get_yticklines()]

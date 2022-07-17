@@ -22,8 +22,11 @@ def plot_covmat(
     channel_names=None,
     scaling=(2, 98),
     axes=None,
+    tick_labels=None,
+    skip_tick_labels=0,
     subtick_labels=None,
     emphasize_offblocks=True,
+    delineate_domains=True,
     primeness="channel",
     highlight_free_params=None,  # None, "scm", "toep", or "both"
     show_averaging=False,
@@ -63,19 +66,34 @@ def plot_covmat(
             ax = axes
     hm_cmap = "RdBu_r"
     # hm_cmap = sns.diverging_palette(145, 300, s=60, as_cmap=True)
-    hm_cmap = sns.diverging_palette(275, 150, s=80, as_cmap=True)
+    # hm_cmap = sns.diverging_palette(275, 150, s=80, as_cmap=True)
     im_map = ax.imshow(covmat, cmap=hm_cmap, vmin=-color_lim, vmax=color_lim)
     if title is not None:
-        title_str = title + "\n"
-        title_str += f"Original datarange: {data_range}\n"
-        if scaling != "symlog" and scaling is not None:
-            title_str += f"Percentiles: {percs}"
-        ax.set_title(title_str)
+        # title_str = title + "\n"
+        # title_str += f"Original datarange: {data_range}\n"
+        # if scaling != "symlog" and scaling is not None:
+        #     title_str += f"Percentiles: {percs}"
+        ax.set_title(title)
     ax.grid(False)
+    offset = 0.5 if dim1%2 == 0 else 1
+    xticks = [i * dim1 + ceil(dim1 / 2) - offset for i in range(dim2)]
+    if tick_labels is None:
+        lab = "t" if primeness == "channel" else "c"
+        xtick_labels = [f"$\\mathrm{{{lab}_{{{i+1}}}}}$" for i in range(dim2)]
+        if skip_tick_labels > 0:
+            new_xtick_labels = list()
+            sc = skip_tick_labels  # always show first
+            for xtl in xtick_labels:
+                sc += 1
+                if sc <= skip_tick_labels:
+                    new_xtick_labels.append("")
+                else:
+                    new_xtick_labels.append(xtl)
+                    sc = 0
+            xtick_labels = new_xtick_labels
 
-    xticks = [i * dim1 + ceil(dim1 / 2) - 1 for i in range(dim2)]
-    lab = "t" if primeness == "channel" else "ch"
-    xtick_labels = [f"$\\mathrm{{{lab}_{{{i+1}}}}}$" for i in range(dim2)]
+    else:
+        xtick_labels = tick_labels
     if subtick_labels is not None:
         yticks = [*range(dim1), *xticks[1:]]
         ytick_labels = [*subtick_labels, *xtick_labels[1:]]
@@ -86,26 +104,27 @@ def plot_covmat(
     ax.set_yticks(yticks)
     ax.set_yticklabels(ytick_labels)
     emph_cp = "k"  # cp[2]
-    for i in range(dim2):
-        x1 = i * dim1 - 0.5
-        x2 = x1 + dim1
-        y1 = x1
-        y2 = x2
-        if emphasize_offblocks:
-            ax.axhline(y1, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
-            ax.axhline(y2, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
-            ax.axvline(x1, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
-            ax.axvline(x2, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
-        else:
-            ax.plot(
-                [x1, x2, x2, x1, x1],
-                [y1, y1, y2, y2, y1],
-                clip_on=True,
-                color=emph_cp,
-                linewidth=1,
-            )
+    if delineate_domains:
+        for i in range(dim2):
+            x1 = i * dim1 - 0.5
+            x2 = x1 + dim1
+            y1 = x1
+            y2 = x2
+            if emphasize_offblocks:
+                ax.axhline(y1, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
+                ax.axhline(y2, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
+                ax.axvline(x1, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
+                ax.axvline(x2, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
+            else:
+                ax.plot(
+                    [x1, x2, x2, x1, x1],
+                    [y1, y1, y2, y2, y1],
+                    clip_on=True,
+                    color=emph_cp,
+                    linewidth=1,
+                )
     if show_colorbar:
-        fc = fig.colorbar(im_map)
+        fc = fig.colorbar(im_map, ax=fig.axes, fraction=0.026, pad=0.04)
         if unit is not None:
             fc.ax.set_title(unit, rotation=0)
     highlight_dash_width = 2

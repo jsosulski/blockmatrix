@@ -1,10 +1,10 @@
 import numpy as np
 
 from blockmatrix import SpatioTemporalData
-from blockmatrix.utils import get_example_raw
+from blockmatrix.utils import get_example_data
 
-raw, nch, ntim = get_example_raw()
-std = SpatioTemporalData(raw)
+dat, nch, ntim = get_example_data()
+std = SpatioTemporalData(dat)
 
 conds = []
 stm = std.get_global_scm()
