@@ -353,6 +353,9 @@ class SpatioTemporalData(TwoDomainData):
         self.montage = montage
         self.sfreq = sfreq
 
+    def __len__(self):
+        return self.data.shape[2]
+
     @property
     def n_chans(self):
         return self.block_dim[0] if self.primeness == "channel" else self.block_dim[1]

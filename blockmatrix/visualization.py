@@ -31,6 +31,8 @@ def plot_covmat(
     highlight_free_params=None,  # None, "scm", "toep", or "both"
     show_averaging=False,
     annotate_dims=True,
+    hm_palette=None,
+    decorations=True,
 ):
     # scaling can be 'symlog' or a tuple which defines the percentiles
     cp = sns.color_palette()
@@ -64,7 +66,7 @@ def plot_covmat(
         else:
             fig = axes.figure
             ax = axes
-    hm_cmap = "RdBu_r"
+    hm_cmap = "RdBu_r" if hm_palette is None else hm_palette
     # hm_cmap = sns.diverging_palette(145, 300, s=60, as_cmap=True)
     # hm_cmap = sns.diverging_palette(275, 150, s=80, as_cmap=True)
     im_map = ax.imshow(covmat, cmap=hm_cmap, vmin=-color_lim, vmax=color_lim)
@@ -99,12 +101,16 @@ def plot_covmat(
         ytick_labels = [*subtick_labels, *xtick_labels[1:]]
     else:
         yticks, ytick_labels = xticks, xtick_labels
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xtick_labels)
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(ytick_labels)
+    if decorations:
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xtick_labels)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(ytick_labels)
+    else:
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
     emph_cp = "k"  # cp[2]
-    if delineate_domains:
+    if delineate_domains and decorations:
         for i in range(dim2):
             x1 = i * dim1 - 0.5
             x2 = x1 + dim1
