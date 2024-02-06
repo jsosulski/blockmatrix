@@ -9,6 +9,7 @@ import numpy as np
 
 try:
     import toeplitz
+
     _has_toeplitz = True
 except ImportError:
     _has_toeplitz = False
@@ -114,12 +115,10 @@ def fortran_cov_mean_transformation(
     # # get array, where each entry contains one block of the column and each block is flatten
     # # NOTE: first block is left out
     newcol = (
-        np.array([l.T for l in np.vsplit(col, ntim - 1)])
-        .reshape((ntim - 1, nch ** 2))
-        .T
+        np.array([l.T for l in np.vsplit(col, ntim - 1)]).reshape((ntim - 1, nch**2)).T
     )
     # # Each block in row is flatten and horizontally concatenated
-    newrow = np.array([l.T for l in np.hsplit(row, ntim)]).reshape(ntim, nch ** 2).T
+    newrow = np.array([l.T for l in np.hsplit(row, ntim)]).reshape(ntim, nch**2).T
 
     # Concat row and column. Start with row, because it contains the first block (column does not)
     a = np.hstack((newrow, newcol))
@@ -189,6 +188,7 @@ def calc_scm(
 def check(b: bool, error_msg: str):
     if not b:
         raise ValueError(error_msg)
+
 
 class BlockBased(ABC):
     def __init__(self, block_dim: Sequence, block_label: Optional[Sequence] = None):
@@ -336,7 +336,7 @@ class SpatioTemporalData(TwoDomainData):
     def get_global_scm(self):
         flata = self.get_flattened()
         scm, mu = calc_scm(flata, flata)
-        stm = SpatioTemporalMatrix( scm, self.n_chans, self.n_times )
+        stm = SpatioTemporalMatrix(scm, self.n_chans, self.n_times)
         # FIXME: SpatioTemporalMatrix should have an option in the constructor
         if self.primeness != "channel":
             stm._swap_primeness()
