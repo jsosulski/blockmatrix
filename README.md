@@ -6,6 +6,12 @@ and applying high-dimensional estimation techniques to them.
 
 This package is also available on PyPi.
 
+## Changes
+
+- 0.3.0:
+  - removed most visualization code, as it added many unnecessary dependencies. If someone used this, let me know.
+  - Fixed general depedency specification.
+
 ## Usage
 
 As of now unfortunately only the code and the docstrings are available as documentation.
