@@ -13,12 +13,12 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8,<3.11"
+python = "^3.8,<4.0"
 matplotlib = "^3.5.1"
 vg = "^2.0.0"
-seaborn = "^0.11.2"
+seaborn = "^0.13"
 toeplitz = {version="^0.3.2", optional = true}
-mne = {version="^0.24.1", optional = true}
+mne = {version="^1", optional = true}
 
 [tool.poetry.extras]
 solver = ["toeplitz"]

@@ -11,6 +11,8 @@ import numpy as np
 import vg
 
 from blockmatrix.visualization import plot_covmat
+from warnings import warn
+
 
 if TYPE_CHECKING:
     from mne.channels import DigMontage
@@ -79,6 +81,34 @@ def block_levinson(block_column, block_row, x):
         x = np.vstack([x, np.zeros((d, 1))]) + b @ (y[n * d : (n + 1) * d] - ex)
 
     return np.squeeze(x)
+
+
+def nearest_kronecker_product(A, Bshape):
+  """Nearest Kronecker product to a matrix.
+  Code from https://gist.github.com/mattjj/854ea42eaf7c6b637ca84d8ca0c8310e
+  Given a matrix A and a shape, solves the problem
+    min || A - kron(B, C) ||_{Fro}^2
+  where the minimization is over B with (the specified shape) and C.
+  The size of the SVD computed in this implementation is the size of the input
+  argument A, and so to compare to nkp_sum if the output is two N x N matrices
+  the complexity scales like O((N^2)^3) = O(N^6).
+  Args:
+    A: m x n matrix
+    Bshape: pair of ints (a, b) where a divides m and b divides n
+  Returns:
+    Approximating factors (B, C)
+  """
+
+  blocks = map(lambda blockcol: np.split(blockcol, Bshape[0], 0),
+                                np.split(A,        Bshape[1], 1))
+  Atilde = np.vstack([block.ravel() for blockcol in blocks
+                                    for block in blockcol])
+  U, s, V = np.linalg.svd(Atilde)
+  Cshape = A.shape[0] // Bshape[0], A.shape[1] // Bshape[1]
+  idx = np.argmax(s)
+  B = np.sqrt(s[idx]) * U[:,idx].reshape(Bshape).T
+  C = np.sqrt(s[idx]) * V[idx,:].reshape(Cshape)
+  return B, C
 
 
 def linear_taper(d, dmax):
@@ -255,6 +285,13 @@ class BlockBased(ABC):
     @property
     def primeness(self):
         return self.block_label[0]
+    
+    def get_dim(self, dimname):
+        i = self.block_label.index(dimname)
+        if i < 0:
+            raise ValueError(f"{dimname} not found. Found: {self.block_label}")
+        return self.block_dim[i]
+    
 
     def __repr__(self):
         domain_descr = ""
@@ -432,7 +469,7 @@ class BlockMatrix(BlockBased):
         )
         self.mat = matrix
         self.properties = []
-
+    
     def get_block(self, b0: int, b1: int, return_blockmatrix: bool = False):
         self._to_2dblockmat()
         check(b0 < self.block_dim[1], "Invalid first index")
@@ -618,13 +655,43 @@ class SpatioTemporalMatrix(BlockMatrix):
     def set_channel_block(self, t0: int, t1: int, blockmat: np.ndarray):
         self.set_block(t0, t1, blockmat)
 
-    def force_toeplitz_offdiagonals(
+    def force_kronecker_product(self, copy=False) -> SpatioTemporalMatrix:
+        """Force block-matrix to be a Kronecker Product.
+
+        Uses the Pitsianis-van-Loan algorithm to find the closes KP."""
+        self._to_2dblockmat()
+        swapit = True if self.primeness == "time" else False
+        if swapit:
+            self.swap_primeness()
+        kp_tim, kp_chan = nearest_kronecker_product(self.mat, (self.block_dim[1], self.block_dim[1]))
+        self.kp_tim_ = kp_tim
+        self.kp_chan_ = kp_chan
+        kp_mat = np.kron(kp_chan, kp_tim)
+
+        if swapit:
+            self.swap_primeness()
+
+        if copy:
+            return SpatioTemporalMatrix(kp_mat, self.block_dim[0], self.block_dim[1], channel_prime=False,
+                                 montage=self.montage, sfreq=self.sfreq).swap_primeness()
+        else:
+            self.mat = kp_mat
+            return self
+
+    def force_toeplitz_offdiagonals(self, **kwargs):
+        """DEPRECATED. Please see force_toeplitz_diagonals instead."""
+        warn(DeprecationWarning("This function is deprecated. Please use force_toeplitz_diagonals instead."))
+        return self.force_toeplitz_diagonals(**kwargs)
+
+    def force_toeplitz_diagonals(
         self,
         average_blocks: bool = True,
         raise_spatial: bool = True,
         normalize_within: bool = False,
     ) -> SpatioTemporalMatrix:
-        """Force the matrix to be block-Toeplitz
+        """Force the block-diagonals to be the same.
+
+        The matrix will become a block-Toeplitz matrix after this operation.
 
         Parameters
         ----------
@@ -731,7 +798,9 @@ class SpatioTemporalMatrix(BlockMatrix):
         fixed_ylim: tuple = None,
         show: bool = False,
         plot_legend: bool = True,
+        decorations: bool = True,
         block_offset: int = 0,
+        cm_handle: Optional[function] = None,
     ):
         self._to_4dblockmat()
         check(
@@ -760,7 +829,10 @@ class SpatioTemporalMatrix(BlockMatrix):
             self.montage.ch_names if self.montage is not None else range(1, n_chans + 1)
         )
         n_times = self.mat.shape[1]
-        cm = plt.cm.plasma(np.linspace(0, 1, n_times))
+        if cm_handle is not None:
+            cm = cm_handle(np.linspace(0, 1, n_times))
+        else:
+            cm = plt.cm.plasma(np.linspace(0, 1, n_times))
         bo = block_offset
         for c in (range(n_chans - bo)):
             submat = self.mat[:, :, c, c+bo]
@@ -803,9 +875,10 @@ class SpatioTemporalMatrix(BlockMatrix):
 
         matrix_type = "Precision" if self.is_inverted else "Covariance"
         time_unit = "(in samples)" if self.sfreq is None else "(in seconds)"
-        fig.text(0.5, 0.01, f"Time offset {time_unit}", ha="center")
-        fig.text(0.01, 0.5, f"{matrix_type}", va="center", rotation="vertical")
-        fig.suptitle(f"{matrix_type} - Temporal stationarity analysis")
+        if decorations:
+            fig.text(0.5, 0.01, f"Time offset {time_unit}", ha="center")
+            fig.text(0.01, 0.5, f"{matrix_type}", va="center", rotation="vertical")
+            fig.suptitle(f"{matrix_type} - Temporal stationarity analysis")
         if show:
             plt.show()
         self._to_2dblockmat()

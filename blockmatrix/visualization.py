@@ -30,9 +30,12 @@ def plot_covmat(
     primeness="channel",
     highlight_free_params=None,  # None, "scm", "toep", or "both"
     show_averaging=False,
+    averaging_lw=3,
     annotate_dims=True,
     hm_palette=None,
+    hm_alpha=1,
     decorations=True,
+    blockline_width=1,
 ):
     # scaling can be 'symlog' or a tuple which defines the percentiles
     cp = sns.color_palette()
@@ -69,7 +72,7 @@ def plot_covmat(
     hm_cmap = "RdBu_r" if hm_palette is None else hm_palette
     # hm_cmap = sns.diverging_palette(145, 300, s=60, as_cmap=True)
     # hm_cmap = sns.diverging_palette(275, 150, s=80, as_cmap=True)
-    im_map = ax.imshow(covmat, cmap=hm_cmap, vmin=-color_lim, vmax=color_lim)
+    im_map = ax.imshow(covmat, cmap=hm_cmap, vmin=-color_lim, vmax=color_lim, alpha=hm_alpha)
     if title is not None:
         # title_str = title + "\n"
         # title_str += f"Original datarange: {data_range}\n"
@@ -117,17 +120,17 @@ def plot_covmat(
             y1 = x1
             y2 = x2
             if emphasize_offblocks:
-                ax.axhline(y1, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
-                ax.axhline(y2, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
-                ax.axvline(x1, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
-                ax.axvline(x2, linestyle="-", color=emph_cp, clip_on=True, linewidth=1)
+                ax.axhline(y1, linestyle="-", color=emph_cp, clip_on=True, linewidth=blockline_width)
+                ax.axhline(y2, linestyle="-", color=emph_cp, clip_on=True, linewidth=blockline_width)
+                ax.axvline(x1, linestyle="-", color=emph_cp, clip_on=True, linewidth=blockline_width)
+                ax.axvline(x2, linestyle="-", color=emph_cp, clip_on=True, linewidth=blockline_width)
             else:
                 ax.plot(
                     [x1, x2, x2, x1, x1],
                     [y1, y1, y2, y2, y1],
                     clip_on=True,
                     color=emph_cp,
-                    linewidth=1,
+                    linewidth=blockline_width,
                 )
     if show_colorbar:
         fc = fig.colorbar(im_map, ax=fig.axes, fraction=0.026, pad=0.04)
@@ -190,8 +193,9 @@ def plot_covmat(
                     edgecolor=local_cp[i],
                     clip_on=False,
                     fill=False,
-                    linewidth=3,
+                    linewidth=averaging_lw,
                     linestyle=ls,
+                    zorder=123122,
                 )
                 ax.add_patch(r)
 
